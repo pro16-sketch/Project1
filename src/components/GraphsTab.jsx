@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ResponsiveContainer, LineChart, Line,
   BarChart, Bar, PieChart, Pie, Cell,
@@ -6,11 +6,17 @@ import {
 } from 'recharts';
 import {
   Activity, TrendingDown, Truck, Brain,
-  AlertTriangle, CheckCircle, RefreshCw, ArrowRight
+  AlertTriangle, RefreshCw, ArrowRight
 } from 'lucide-react';
 
 const COLORS = ['#0066ff', '#ff00ff', '#39ff14', '#ffb000'];
 const CATEGORIES = ['Medical', 'Water', 'Boats', 'Shelters'];
+
+// Pure pseudo-random generator to satisfy React 19 render purity rules
+const getPseudoRandom = (seed) => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
 
 // Custom dark mode tooltip
 const CustomTooltip = ({ active, payload, label }) => {
@@ -102,7 +108,6 @@ export default function GraphsTab() {
 
   const [advisory, setAdvisory] = useState(null);
   const [reallocating, setReallocating] = useState(false);
-  const [advisoryError, setAdvisoryError] = useState(null);
   const [toast, setToast] = useState(null);
   const [simActive, setSimActive] = useState(false);
 
@@ -510,7 +515,6 @@ export default function GraphsTab() {
       setToast({ type: 'success', text: 'Neural Logistics optimization advisory compiled.' });
     } catch (err) {
       console.error("Advisory compilation failed:", err);
-      setAdvisoryError(err.message || "Failed to compile recommendation.");
 
       // Dynamic fallback recommendation based on actual stock levels
       let lowestShelter = 'Jadavpur University Relief Camp';
@@ -604,9 +608,14 @@ export default function GraphsTab() {
     if (r.resource.includes('Boat')) catIndex = 2;
     if (r.resource.includes('Shelter')) catIndex = 3;
 
+    const seedX = (r.id || i) + 1;
+    const seedY = (r.id || i) + 2;
+    const pseudoX = getPseudoRandom(seedX);
+    const pseudoY = getPseudoRandom(seedY);
+
     return {
-      x: r.priority + (Math.random() * 0.4 - 0.2),
-      y: 100 - (r.priority * 20) + (Math.random() * 20),
+      x: r.priority + (pseudoX * 0.4 - 0.2),
+      y: 100 - (r.priority * 20) + (pseudoY * 20),
       z: 100,
       category: CATEGORIES[catIndex],
       name: r.name
@@ -642,71 +651,79 @@ export default function GraphsTab() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '25px', marginBottom: '35px' }}>
         {/* Line Chart */}
-        <div className="glass-panel" style={{ padding: '20px', height: '420px' }}>
+        <div className="glass-panel" style={{ padding: '20px', height: '420px', position: 'relative' }}>
           <h3 style={{ fontSize: '14px', marginBottom: '15px' }}>Request Frequency (Timeline)</h3>
-          <ResponsiveContainer width="100%" height="85%">
-            <LineChart data={timelineData} margin={{ top: 5, right: 20, bottom: 15, left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,102,255,0.1)" />
-              <XAxis dataKey="time" stroke="#e0e0ff" label={{ value: "Time of Day", position: "insideBottom", offset: -10, fill: "#e0e0ff", fontSize: 12 }} />
-              <YAxis stroke="#e0e0ff" label={{ value: "Total Requests", angle: -90, position: "insideLeft", fill: "#e0e0ff", style: { textAnchor: "middle" }, fontSize: 12 }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Line type="monotone" dataKey="requests" stroke="#ff00ff" strokeWidth={3} dot={{ r: 4, fill: '#ff00ff', stroke: '#fff' }} activeDot={{ r: 8, fill: '#fff', stroke: '#ff00ff' }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <div style={{ width: '100%', height: '340px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={timelineData} margin={{ top: 5, right: 20, bottom: 15, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,102,255,0.1)" />
+                <XAxis dataKey="time" stroke="#e0e0ff" label={{ value: "Time of Day", position: "insideBottom", offset: -10, fill: "#e0e0ff", fontSize: 12 }} />
+                <YAxis stroke="#e0e0ff" label={{ value: "Total Requests", angle: -90, position: "insideLeft", fill: "#e0e0ff", style: { textAnchor: "middle" }, fontSize: 12 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="requests" stroke="#ff00ff" strokeWidth={3} dot={{ r: 4, fill: '#ff00ff', stroke: '#fff' }} activeDot={{ r: 8, fill: '#fff', stroke: '#ff00ff' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Bar Chart */}
-        <div className="glass-panel" style={{ padding: '20px', height: '420px' }}>
+        <div className="glass-panel" style={{ padding: '20px', height: '420px', position: 'relative' }}>
           <h3 style={{ fontSize: '14px', marginBottom: '15px' }}>Resource Availability vs Requirement</h3>
-          <ResponsiveContainer width="100%" height="85%">
-            <BarChart data={resourceData} margin={{ top: 5, right: 20, bottom: 15, left: 15 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,102,255,0.1)" />
-              <XAxis dataKey="name" stroke="#e0e0ff" label={{ value: "Resource Category", position: "insideBottom", offset: -10, fill: "#e0e0ff", fontSize: 12 }} />
-              <YAxis stroke="#e0e0ff" label={{ value: "Quantity (Units)", angle: -90, position: "insideLeft", fill: "#e0e0ff", style: { textAnchor: "middle" }, fontSize: 12 }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ paddingTop: '10px' }} />
-              <Bar dataKey="available" fill="#39ff14" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="required" fill="#ff3333" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div style={{ width: '100%', height: '340px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={resourceData} margin={{ top: 5, right: 20, bottom: 15, left: 15 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,102,255,0.1)" />
+                <XAxis dataKey="name" stroke="#e0e0ff" label={{ value: "Resource Category", position: "insideBottom", offset: -10, fill: "#e0e0ff", fontSize: 12 }} />
+                <YAxis stroke="#e0e0ff" label={{ value: "Quantity (Units)", angle: -90, position: "insideLeft", fill: "#e0e0ff", style: { textAnchor: "middle" }, fontSize: 12 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                <Bar dataKey="available" fill="#39ff14" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="required" fill="#ff3333" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Scatter / Jitter Plot */}
-        <div className="glass-panel" style={{ padding: '20px', height: '420px' }}>
+        <div className="glass-panel" style={{ padding: '20px', height: '420px', position: 'relative' }}>
           <h3 style={{ fontSize: '14px', marginBottom: '15px' }}>Priority Clustering (Jitter Plot)</h3>
-          <ResponsiveContainer width="100%" height="85%">
-            <ScatterChart margin={{ top: 5, right: 20, bottom: 50, left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,102,255,0.1)" />
-              <XAxis type="number" dataKey="x" name="Priority Level" stroke="#e0e0ff" domain={[0.5, 3.5]} ticks={[1, 2, 3]} label={{ value: "Priority Level (1 = Urgent)", position: "insideBottom", offset: -20, fill: "#e0e0ff", fontSize: 12 }} />
-              <YAxis type="number" dataKey="y" name="Impact" stroke="#e0e0ff" label={{ value: "Impact Severity", angle: -90, position: "insideLeft", fill: "#e0e0ff", style: { textAnchor: "middle" }, fontSize: 12 }} />
-              <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
-              <Legend verticalAlign="bottom" height={60} wrapperStyle={{ paddingTop: '30px' }} />
-              {CATEGORIES.map((cat, index) => (
-                <Scatter
-                  key={cat}
-                  name={cat}
-                  data={scatterData.filter(d => d.category === cat)}
-                  fill={COLORS[index]}
-                />
-              ))}
-            </ScatterChart>
-          </ResponsiveContainer>
+          <div style={{ width: '100%', height: '340px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 5, right: 20, bottom: 50, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,102,255,0.1)" />
+                <XAxis type="number" dataKey="x" name="Priority Level" stroke="#e0e0ff" domain={[0.5, 3.5]} ticks={[1, 2, 3]} label={{ value: "Priority Level (1 = Urgent)", position: "insideBottom", offset: -20, fill: "#e0e0ff", fontSize: 12 }} />
+                <YAxis type="number" dataKey="y" name="Impact" stroke="#e0e0ff" label={{ value: "Impact Severity", angle: -90, position: "insideLeft", fill: "#e0e0ff", style: { textAnchor: "middle" }, fontSize: 12 }} />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
+                <Legend verticalAlign="bottom" height={60} wrapperStyle={{ paddingTop: '30px' }} />
+                {CATEGORIES.map((cat, index) => (
+                  <Scatter
+                    key={cat}
+                    name={cat}
+                    data={scatterData.filter(d => d.category === cat)}
+                    fill={COLORS[index]}
+                  />
+                ))}
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Pie Chart */}
-        <div className="glass-panel" style={{ padding: '20px', height: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <h3 style={{ fontSize: '14px', marginBottom: '15px', alignSelf: 'flex-start' }}>Available Resource Distribution</h3>
-          <ResponsiveContainer width="100%" height="85%">
-            <PieChart>
-              <Pie data={resourceData} dataKey="available" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={90} paddingAngle={5}>
-                {resourceData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend verticalAlign="bottom" height={36} />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="glass-panel" style={{ padding: '20px', height: '420px', position: 'relative' }}>
+          <h3 style={{ fontSize: '14px', marginBottom: '15px' }}>Available Resource Distribution</h3>
+          <div style={{ width: '100%', height: '340px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={resourceData} dataKey="available" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={90} paddingAngle={5} isAnimationActive={false}>
+                  {resourceData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
