@@ -1,45 +1,72 @@
 import React, { useState } from 'react';
+// import our global custom context state so we can read simulated events in real-time
 import { usePrimeState } from '../../utils/PrimeState';
+// import lucide-react icons for visual dashboard highlights
 import { BookOpen, FileText, PlusCircle, Check } from 'lucide-react';
 
+/**
+ * IncidentLog Component
+ * ---------------------
+ * This component renders the "Chronological Operational Ledger".
+ * It serves two main purposes:
+ * 1. Reads simulated event logs in real-time from our state simulator.
+ * 2. Allows human operators to type in manual briefing notes, merge them,
+ *    and export the entire combined ledger as a printable PDF report.
+ */
 export default function IncidentLog() {
+  // Read simulated event logs list from our global state hook
   const { simLogs } = usePrimeState();
+  
+  // useState: keeps track of what the operator is typing in the annotation textbox
   const [annotation, setAnnotation] = useState('');
+  
+  // useState: holds a list of custom manual notes typed and submitted by the user
   const [addedLogs, setAddedLogs] = useState([]);
 
-  // Combine simulated logs with user manual annotations
+  // React.useMemo: Combines and sorts both simulated and manual logs.
+  // We use useMemo to cache (remember) the sorted list. This avoids running the
+  // sorting loop on every single render tick unless the log arrays actually change!
   const allLogs = React.useMemo(() => {
+    // Merge simulated logs and manual logs into a single flat array
     const combined = [...simLogs, ...addedLogs];
-    // Sort so recent logs appear first or last. Let's show newest at the top for premium dashboard feel!
+    
+    // Sort logs so that the most recent alerts appear at the very top (reverse-chronological)
     return combined.sort((a, b) => {
-      // Crude parsing of "HH:MM:SS" string for sorting
+      // Compares timestamp strings (e.g. "12:45:08" vs "12:44:02") to sort them
       return b.time.localeCompare(a.time);
     });
   }, [simLogs, addedLogs]);
 
+  // Handler: Triggered when the operator submits a new manual briefing note
   const handleAddAnnotation = (e) => {
-    e.preventDefault();
-    if (!annotation.trim()) return;
+    e.preventDefault(); // Prevents the browser from reloading the page
+    if (!annotation.trim()) return; // Exit if the input is empty or just spaces
 
+    // Capture the current local clock time for the note
     const timeStr = new Date().toLocaleTimeString();
+    
+    // Structure a new log object representing our custom annotation
     const newLog = {
       time: timeStr,
       text: `[MANUAL ANNOTATION] Operator: ${annotation}`
     };
 
+    // Update the local state array to insert the new log at the front
     setAddedLogs(prev => [newLog, ...prev]);
     
-    // Also save to sessionStorage simulation log to synchronize with the simulation loop
+    // Sync with sessionStorage so other components can access the manual note if needed
     try {
       const rawLogs = sessionStorage.getItem('sim_logs') || '[]';
       const parsed = JSON.parse(rawLogs);
-      parsed.push(newLog);
+      parsed.push(newLog); // Append the new log
       sessionStorage.setItem('sim_logs', JSON.stringify(parsed));
     } catch (err) {}
 
+    // Reset the input text field to blank
     setAnnotation('');
   };
 
+  // Handler: Opens the standard browser print window to print the ledger as a PDF
   const handlePrint = () => {
     window.print();
   };
@@ -47,7 +74,7 @@ export default function IncidentLog() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflow: 'hidden' }}>
       
-      {/* Upper Control Panel */}
+      {/* Upper Control Panel: Displays section title and the "Export to PDF" print button */}
       <div className="print-hide glass-panel" style={{ padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <BookOpen size={18} color="var(--neon-cyan)" />
@@ -77,10 +104,10 @@ export default function IncidentLog() {
         </button>
       </div>
 
-      {/* Main Grid: Form + Ticker List */}
+      {/* Main Grid: Holds the input form (left) and the scrolling ledger (right) */}
       <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: 0 }} className="incident-grid">
         
-        {/* Manual Annotation Input Form */}
+        {/* Manual Annotation Input Form: Hidden when printing PDF */}
         <div className="glass-panel print-hide" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', height: 'fit-content' }}>
           <h4 style={{ fontSize: '13px', color: 'var(--neon-magenta)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <PlusCircle size={15} /> Append Operator Log
@@ -129,10 +156,10 @@ export default function IncidentLog() {
           </form>
         </div>
 
-        {/* Chronological Scroll List */}
+        {/* Chronological Scroll List: The actual ticking ledger log */}
         <div className="glass-panel" style={{ flex: 2, padding: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} id="printable-incident-ledger">
           
-          {/* Printable only header */}
+          {/* Printable Header Block: Hidden on the web UI, only visible in the exported PDF file */}
           <div className="print-only-block" style={{ display: 'none', marginBottom: '20px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>
             <h1 style={{ color: '#000', textShadow: 'none', fontSize: '20px' }}>NEXUS PRIME OPERATIONAL LOGS</h1>
             <p style={{ color: '#555', fontSize: '11px' }}>CONFIDENTIAL Emergency Operations Center System Transcript — Generated on: {new Date().toLocaleString()}</p>
@@ -140,15 +167,19 @@ export default function IncidentLog() {
 
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '5px' }}>
             {allLogs.length === 0 ? (
+              // Fallback placeholder if there are absolutely no logs
               <div style={{ textAlign: 'center', color: '#555', padding: '30px', border: '1px dashed #222', borderRadius: '4px', fontSize: '13px' }}>
-                Operational ledger is currently empty. Initialize a monsoon simulation deck drill to stream active telemetry logs.
+                Operational ledger is currently empty. Initialize a monsoon simulation drill to stream active telemetry logs.
               </div>
             ) : (
+              // Map over the list of combined logs and draw them on screen
               allLogs.map((log, index) => {
+                // Determine log types to set color-coded warnings
                 const isManual = log.text.includes('[MANUAL ANNOTATION]');
                 const isCritical = log.text.includes('CRITICAL') || log.text.includes('FAIL') || log.text.includes('Danger');
                 const isTelem = log.text.includes('[TELEM]') || log.text.includes('[GIS]');
                 
+                // Color codes: Magenta for human notes, Red for critical failures, Cyan for sensors, grey for default
                 let textColor = '#ccc';
                 if (isManual) textColor = 'var(--neon-magenta)';
                 else if (isCritical) textColor = 'var(--neon-red)';
@@ -170,7 +201,9 @@ export default function IncidentLog() {
                     }}
                     className="ledger-row"
                   >
+                    {/* Timestamp column */}
                     <span style={{ color: '#666', flexShrink: 0, fontWeight: 'bold' }}>{log.time}</span>
+                    {/* Log details text */}
                     <span style={{ color: textColor, lineHeight: '1.4' }} className="ledger-text">{log.text}</span>
                   </div>
                 );
@@ -181,7 +214,7 @@ export default function IncidentLog() {
 
       </div>
 
-      {/* Styled print styles added directly using a style block */}
+      {/* Styled print rules: Ensures the background, borders, and margins are adjusted cleanly when exporting as PDF */}
       <style>{`
         @media print {
           body {
