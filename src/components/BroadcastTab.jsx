@@ -84,96 +84,6 @@ export default function BroadcastTab() {
     }
   }, [toast]);
 
-  // EAS 1999 Audio Tone generator
-  const playSiren = () => {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const MARK_FREQ   = 2083.3;
-      const SPACE_FREQ  = 1562.5;
-      const BAUD_RATE   = 520.83;
-      const BIT_DUR     = 1 / BAUD_RATE;
-
-      const stringToBits = (str) => {
-        const bits = [];
-        for (let i = 0; i < str.length; i++) {
-          const byte = str.charCodeAt(i);
-          for (let b = 0; b < 8; b++) bits.push((byte >> b) & 1);
-        }
-        return bits;
-      };
-
-      const PREAMBLE_BYTE = 0xAB;
-      const preambleBits = [];
-      for (let i = 0; i < 16; i++) {
-        for (let b = 0; b < 8; b++) preambleBits.push((PREAMBLE_BYTE >> b) & 1);
-      }
-
-      const HEADER_STR = 'ZCZC-CIV-EAN-000000+0100-1201615-WKEX999-';
-      const EOM_STR    = 'NNNN';
-
-      const headerBits   = [...preambleBits, ...stringToBits(HEADER_STR)];
-      const eomBits      = [...preambleBits, ...stringToBits(EOM_STR)];
-
-      const playFSKBits = (bits, startTime, gain = 0.18) => {
-        const masterGain = audioCtx.createGain();
-        masterGain.gain.setValueAtTime(gain, startTime);
-        masterGain.connect(audioCtx.destination);
-
-        bits.forEach((bit, i) => {
-          const t   = startTime + i * BIT_DUR;
-          const osc = audioCtx.createOscillator();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(bit === 1 ? MARK_FREQ : SPACE_FREQ, t);
-          osc.connect(masterGain);
-          osc.start(t);
-          osc.stop(t + BIT_DUR + 0.0001);
-        });
-
-        return startTime + bits.length * BIT_DUR;
-      };
-
-      let cursor = audioCtx.currentTime + 0.05;
-      const BURST_GAP = 1.0;
-
-      for (let burst = 0; burst < 3; burst++) {
-        cursor = playFSKBits(headerBits, cursor);
-        cursor += BURST_GAP;
-      }
-
-      // Attention Signal - dual frequency
-      const attnDur = 4.0; // shortened for user experience comfort during drill
-      const attnGain = audioCtx.createGain();
-      attnGain.gain.setValueAtTime(0.14, cursor);
-      attnGain.gain.setValueAtTime(0.14, cursor + attnDur - 0.15);
-      attnGain.gain.linearRampToValueAtTime(0.001, cursor + attnDur);
-      attnGain.connect(audioCtx.destination);
-
-      const attn1 = audioCtx.createOscillator();
-      attn1.type = 'sine';
-      attn1.frequency.setValueAtTime(853, cursor);
-      attn1.connect(attnGain);
-      attn1.start(cursor);
-      attn1.stop(cursor + attnDur);
-
-      const attn2 = audioCtx.createOscillator();
-      attn2.type = 'sine';
-      attn2.frequency.setValueAtTime(960, cursor);
-      attn2.connect(attnGain);
-      attn2.start(cursor);
-      attn2.stop(cursor + attnDur);
-
-      cursor += attnDur + BURST_GAP;
-
-      for (let burst = 0; burst < 3; burst++) {
-        cursor = playFSKBits(eomBits, cursor);
-        cursor += (burst < 2) ? BURST_GAP : 0;
-      }
-
-    } catch (e) {
-      console.warn('EAS Audio synthesis failed:', e);
-    }
-  };
-
   const handleTranslate = async () => {
     if (!warningMessage.trim()) {
       setToast({ type: 'warning', text: 'Please input an English warning message first.' });
@@ -233,7 +143,9 @@ export default function BroadcastTab() {
     }
 
     setBroadcasting(true);
-    playSiren();
+    if (window.NexusSimulator) {
+      window.NexusSimulator.playSiren();
+    }
 
     setTimeout(() => {
       setActiveAlert({
