@@ -66,9 +66,8 @@ export default function RequestsTab() {
       Return ONLY a JSON object: {"priority": "1|2|3", "resource": "Name", "analysis": "Text"}
     `;
 
-    // Priority: Gemini -> OpenRouter -> Groq -> DeepSeek
+    // Priority: OpenRouter -> Groq -> DeepSeek
     const providers = [
-      { name: 'Google', key: import.meta.env.VITE_GEMINI_API_KEY, model: 'gemini-2.5-flash' },
       { name: 'OpenRouter', key: import.meta.env.VITE_OPENROUTER_API_KEY, model: 'openrouter/free' },
       { name: 'Groq', key: import.meta.env.VITE_GROQ_API_KEY, model: 'llama-3.3-70b-versatile' },
       { name: 'DeepSeek', key: import.meta.env.VITE_DEEPSEEK_API_KEY, model: 'deepseek-chat' }
@@ -227,7 +226,7 @@ export default function RequestsTab() {
 
   return (
     <div style={{ height: '100%', width: '100%', overflowY: 'auto', padding: '10px 20px', display: 'flex', gap: '30px' }}>
-      
+
       {/* Request Form */}
       <div className="glass-panel" style={{ flex: 1, padding: '25px', display: 'flex', flexDirection: 'column' }}>
         <h2 style={{ marginBottom: '20px' }}>Victim Registration</h2>
@@ -235,20 +234,20 @@ export default function RequestsTab() {
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--neon-cyan)', marginBottom: '5px' }}>Full Name</label>
             <input type="text" placeholder="Enter victim's name"
-                   value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
-                   style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }} required />
+              value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
+              style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }} required />
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--neon-cyan)', marginBottom: '5px' }}>Age</label>
               <input type="number" placeholder="Age"
-                     value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})}
-                     style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }} />
+                value={formData.age} onChange={e => setFormData({ ...formData, age: e.target.value })}
+                style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }} />
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--neon-cyan)', marginBottom: '5px' }}>Gender</label>
-              <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}
-                      style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }}>
+              <select value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}
+                style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }}>
                 <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
               </select>
             </div>
@@ -261,13 +260,13 @@ export default function RequestsTab() {
               </div>
             </div>
             <input type="text" placeholder="e.g. Typhoid, Dislocated collar bone"
-                   value={formData.disease} onChange={e => setFormData({...formData, disease: e.target.value})}
-                   style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }} />
+              value={formData.disease} onChange={e => setFormData({ ...formData, disease: e.target.value })}
+              style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }} />
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--neon-cyan)', marginBottom: '5px' }}>Resources Required</label>
-            <select value={formData.resource} onChange={e => setFormData({...formData, resource: e.target.value})}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }}>
+            <select value={formData.resource} onChange={e => setFormData({ ...formData, resource: e.target.value })}
+              style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }}>
               <option value="Immediate Saline">Immediate Saline</option>
               <option value="Medical Rations">Medical Rations</option>
               <option value="Rescue Boat">Rescue Boat</option>
@@ -279,8 +278,8 @@ export default function RequestsTab() {
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--neon-cyan)', marginBottom: '5px' }}>Location Details (Zone)</label>
-            <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }} required>
+            <select value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })}
+              style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }} required>
               <option value="Howrah">Howrah</option>
               <option value="Sector 4 Area">Sector 4 Area</option>
               <option value="North Avenue">North Avenue</option>
@@ -292,8 +291,8 @@ export default function RequestsTab() {
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--neon-cyan)', marginBottom: '5px' }}>Severity (Priority)</label>
-            <select value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }}>
+            <select value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value })}
+              style={{ width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 243, 255, 0.3)', color: '#fff', padding: '10px', borderRadius: '4px' }}>
               <option value="1">Extreme (CRITICAL)</option>
               <option value="2">Dangerous (HIGH)</option>
               <option value="3">Moderate (STANDARD)</option>
@@ -307,7 +306,7 @@ export default function RequestsTab() {
         <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid rgba(0, 243, 255, 0.2)' }}>
           <h3 style={{ fontSize: '14px', marginBottom: '15px' }}>External Device Connectivity</h3>
           <button type="button" onClick={handleConnectBluetooth}
-                  style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px dashed var(--neon-magenta)', color: 'var(--neon-magenta)', cursor: 'pointer', fontFamily: 'var(--font-header)' }}>
+            style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px dashed var(--neon-magenta)', color: 'var(--neon-magenta)', cursor: 'pointer', fontFamily: 'var(--font-header)' }}>
             Initialize Web Bluetooth Link
           </button>
           <div style={{ marginTop: '10px', fontSize: '12px', color: btStatus.includes('Failed') || btStatus.includes('supported') ? 'var(--neon-red)' : 'var(--neon-lime)', textAlign: 'center' }}>
@@ -324,15 +323,15 @@ export default function RequestsTab() {
             {requests.length} TICKETS OPEN
           </div>
         </div>
-        
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', overflowY: 'auto', paddingRight: '5px' }}>
           {sortedRequests.map((req, index) => {
             const isTop = index === 0;
             const priorityColor = req.priority === 1 ? 'var(--neon-red)' : req.priority === 2 ? 'var(--neon-amber)' : 'var(--neon-lime)';
             return (
-              <div key={req.id} style={{ 
-                padding: '15px', 
-                borderLeft: `4px solid ${priorityColor}`, 
+              <div key={req.id} style={{
+                padding: '15px',
+                borderLeft: `4px solid ${priorityColor}`,
                 background: isTop && req.priority === 1 ? 'rgba(255, 51, 51, 0.1)' : 'rgba(0,0,0,0.4)',
                 borderBottom: '1px solid rgba(255,255,255,0.1)',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -343,11 +342,11 @@ export default function RequestsTab() {
                     <span style={{ fontSize: '12px', opacity: 0.7 }}>({req.age}, {req.gender})</span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px', fontSize: '13px', color: '#aaa', marginBottom: '10px' }}>
-                    <div><strong style={{color:'#ccc'}}>Condition:</strong> {req.disease || 'N/A'}</div>
-                    <div><strong style={{color:'#ccc'}}>Location:</strong> {req.location}</div>
-                    <div style={{gridColumn: '1 / span 2'}}><strong style={{color:'#ccc'}}>Needs:</strong> {req.resource || 'N/A'}</div>
+                    <div><strong style={{ color: '#ccc' }}>Condition:</strong> {req.disease || 'N/A'}</div>
+                    <div><strong style={{ color: '#ccc' }}>Location:</strong> {req.location}</div>
+                    <div style={{ gridColumn: '1 / span 2' }}><strong style={{ color: '#ccc' }}>Needs:</strong> {req.resource || 'N/A'}</div>
                   </div>
-                  
+
                   {/* AI Description Block */}
                   <div style={{ background: 'rgba(0, 243, 255, 0.05)', borderLeft: '2px solid var(--neon-cyan)', padding: '10px', borderRadius: '0 4px 4px 0' }}>
                     <div style={{ fontSize: '10px', color: 'var(--neon-cyan)', textTransform: 'uppercase', marginBottom: '5px' }}>Neural Analysis</div>
@@ -355,19 +354,19 @@ export default function RequestsTab() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', minWidth: '120px' }}>
-                  <span style={{ 
+                  <span style={{
                     padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px',
-                    background: req.status === 'dispatched' ? 'rgba(255,255,255,0.1)' : `rgba(${priorityColor === 'var(--neon-red)' ? '255,51,51' : priorityColor === 'var(--neon-amber)' ? '255,176,0' : '57,255,20'}, 0.2)`, 
-                    color: req.status === 'dispatched' ? '#888' : priorityColor 
+                    background: req.status === 'dispatched' ? 'rgba(255,255,255,0.1)' : `rgba(${priorityColor === 'var(--neon-red)' ? '255,51,51' : priorityColor === 'var(--neon-amber)' ? '255,176,0' : '57,255,20'}, 0.2)`,
+                    color: req.status === 'dispatched' ? '#888' : priorityColor
                   }}>
                     {req.status === 'dispatched' ? 'DISPATCHED' : (req.priority === 1 ? 'EXTREME' : req.priority === 2 ? 'DANGEROUS' : 'MODERATE')}
                   </span>
-                  
+
                   {req.status === 'dispatched' ? (
-                     <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid var(--neon-cyan)', padding: '10px', textAlign: 'center', borderRadius: '4px' }}>
-                       <div style={{ fontSize: '10px', color: 'var(--neon-cyan)' }}>Rescue ETA</div>
-                       <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{Math.max(0, Math.ceil(req.rescueTimeLimit - (Date.now() - req.dispatchTime)/1000))}s</div>
-                     </div>
+                    <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid var(--neon-cyan)', padding: '10px', textAlign: 'center', borderRadius: '4px' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--neon-cyan)' }}>Rescue ETA</div>
+                      <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{Math.max(0, Math.ceil(req.rescueTimeLimit - (Date.now() - req.dispatchTime) / 1000))}s</div>
+                    </div>
                   ) : (
                     <button onClick={() => handleResolve(req.id)} style={{ padding: '8px 15px', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', cursor: 'pointer', borderRadius: '4px', fontSize: '12px', transition: 'all 0.2s' }}>
                       Resolve Case
@@ -471,7 +470,8 @@ export default function RequestsTab() {
             </div>
 
             {/* Custom CSS for BLE progress bars injected inline */}
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+              __html: `
               @keyframes fillBle1 {
                 0% { width: 0%; }
                 100% { width: 100%; }

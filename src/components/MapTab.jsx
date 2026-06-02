@@ -238,7 +238,7 @@ export default function MapTab() {
     const syncSimulation = () => {
       const active = sessionStorage.getItem('sim_active') === 'true';
       const stage = parseInt(sessionStorage.getItem('sim_active_stage') || '0');
-      
+
       setSimActive(active);
       setSimStage(stage);
 
@@ -316,7 +316,6 @@ export default function MapTab() {
     `;
 
     const providers = [
-      { name: 'Google', key: import.meta.env.VITE_GEMINI_API_KEY, model: 'gemini-2.5-flash' },
       { name: 'OpenRouter', key: import.meta.env.VITE_OPENROUTER_API_KEY, model: 'openrouter/free' },
       { name: 'Groq', key: import.meta.env.VITE_GROQ_API_KEY, model: 'llama-3.3-70b-versatile' },
       { name: 'DeepSeek', key: import.meta.env.VITE_DEEPSEEK_API_KEY, model: 'deepseek-chat' }
@@ -521,10 +520,10 @@ export default function MapTab() {
               {/* Dynamic manual dispatches glowing route trails */}
               {Object.keys(activeDispatchAnimations).map(id => {
                 const anim = activeDispatchAnimations[id];
-                const coords = anim.phase === 'to_target' 
-                  ? [anim.startPos, anim.targetPos] 
+                const coords = anim.phase === 'to_target'
+                  ? [anim.startPos, anim.targetPos]
                   : [anim.targetPos, anim.shelterPos];
-                
+
                 return (
                   <Polyline
                     key={`anim-line-${id}`}
@@ -564,11 +563,11 @@ export default function MapTab() {
               {MOCK_RESOURCES.map(res => {
                 const isShelter = res.type === 'shelter';
                 const inventory = isShelter && shelterInventory ? shelterInventory[res.label] : null;
-                
+
                 // Override resource position if it is currently undergoing dispatch animation
-                 const anim = activeDispatchAnimations[res.id];
-                 const simPos = simActive && simStage >= 4 && simBoatPositions && simBoatPositions[res.id];
-                 const position = anim ? anim.currentPos : (simPos ? simPos : res.pos);
+                const anim = activeDispatchAnimations[res.id];
+                const simPos = simActive && simStage >= 4 && simBoatPositions && simBoatPositions[res.id];
+                const position = anim ? anim.currentPos : (simPos ? simPos : res.pos);
 
                 return (
                   <Marker key={res.id} position={position} icon={icons[res.type]}>

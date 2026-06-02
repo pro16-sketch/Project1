@@ -45,96 +45,6 @@ class NexusSimulatorEngine {
     }
   }
 
-  // EAS 1999 Audio Tone generator
-  playSiren() {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const MARK_FREQ   = 2083.3;
-      const SPACE_FREQ  = 1562.5;
-      const BAUD_RATE   = 520.83;
-      const BIT_DUR     = 1 / BAUD_RATE;
-
-      const stringToBits = (str) => {
-        const bits = [];
-        for (let i = 0; i < str.length; i++) {
-          const byte = str.charCodeAt(i);
-          for (let b = 0; b < 8; b++) bits.push((byte >> b) & 1);
-        }
-        return bits;
-      };
-
-      const PREAMBLE_BYTE = 0xAB;
-      const preambleBits = [];
-      for (let i = 0; i < 16; i++) {
-        for (let b = 0; b < 8; b++) preambleBits.push((PREAMBLE_BYTE >> b) & 1);
-      }
-
-      const HEADER_STR = 'ZCZC-CIV-EAN-000000+0100-1201615-WKEX999-';
-      const EOM_STR    = 'NNNN';
-
-      const headerBits   = [...preambleBits, ...stringToBits(HEADER_STR)];
-      const eomBits      = [...preambleBits, ...stringToBits(EOM_STR)];
-
-      const playFSKBits = (bits, startTime, gain = 0.18) => {
-        const masterGain = audioCtx.createGain();
-        masterGain.gain.setValueAtTime(gain, startTime);
-        masterGain.connect(audioCtx.destination);
-
-        bits.forEach((bit, i) => {
-          const t   = startTime + i * BIT_DUR;
-          const osc = audioCtx.createOscillator();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(bit === 1 ? MARK_FREQ : SPACE_FREQ, t);
-          osc.connect(masterGain);
-          osc.start(t);
-          osc.stop(t + BIT_DUR + 0.0001);
-        });
-
-        return startTime + bits.length * BIT_DUR;
-      };
-
-      let cursor = audioCtx.currentTime + 0.05;
-      const BURST_GAP = 1.0;
-
-      for (let burst = 0; burst < 3; burst++) {
-        cursor = playFSKBits(headerBits, cursor);
-        cursor += BURST_GAP;
-      }
-
-      // Attention Signal - dual frequency
-      const attnDur = 4.0; // shortened for user experience comfort during drill
-      const attnGain = audioCtx.createGain();
-      attnGain.gain.setValueAtTime(0.14, cursor);
-      attnGain.gain.setValueAtTime(0.14, cursor + attnDur - 0.15);
-      attnGain.gain.linearRampToValueAtTime(0.001, cursor + attnDur);
-      attnGain.connect(audioCtx.destination);
-
-      const attn1 = audioCtx.createOscillator();
-      attn1.type = 'sine';
-      attn1.frequency.setValueAtTime(853, cursor);
-      attn1.connect(attnGain);
-      attn1.start(cursor);
-      attn1.stop(cursor + attnDur);
-
-      const attn2 = audioCtx.createOscillator();
-      attn2.type = 'sine';
-      attn2.frequency.setValueAtTime(960, cursor);
-      attn2.connect(attnGain);
-      attn2.start(cursor);
-      attn2.stop(cursor + attnDur);
-
-      cursor += attnDur + BURST_GAP;
-
-      for (let burst = 0; burst < 3; burst++) {
-        cursor = playFSKBits(eomBits, cursor);
-        cursor += (burst < 2) ? BURST_GAP : 0;
-      }
-
-    } catch (e) {
-      console.warn('EAS Audio synthesis failed:', e);
-    }
-  }
-
   addLog(text) {
     const rawLogs = sessionStorage.getItem('sim_logs') || '[]';
     let logs = [];
@@ -146,6 +56,42 @@ class NexusSimulatorEngine {
     const timeStr = new Date().toLocaleTimeString();
     logs.push({ time: timeStr, text });
     sessionStorage.setItem('sim_logs', JSON.stringify(logs));
+  }
+
+  // EAS 1999 Two-Tone Attention Signal (853Hz + 960Hz blend, 8 seconds)
+  playSiren() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+
+      // EAS standard uses an 8-second two-tone alert: 853Hz and 960Hz mixed together
+      const frequencies = [853, 960];
+      const duration = 8; // seconds
+      const gainNode = ctx.createGain();
+      gainNode.gain.setValueAtTime(0.35, ctx.currentTime);
+      // Fade out in last 0.5s to avoid click
+      gainNode.gain.setValueAtTime(0.35, ctx.currentTime + duration - 0.5);
+      gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+      gainNode.connect(ctx.destination);
+
+      frequencies.forEach(freq => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        osc.connect(gainNode);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+      });
+
+      // Auto-close context after tone ends
+      setTimeout(() => {
+        try { ctx.close(); } catch (e) {}
+      }, (duration + 0.5) * 1000);
+
+    } catch (e) {
+      console.warn('[EAS] Audio context unavailable for siren playback:', e);
+    }
   }
 
   reset() {
@@ -163,7 +109,7 @@ class NexusSimulatorEngine {
     sessionStorage.setItem('sachet_authorized', 'false');
     sessionStorage.setItem('sachet_active_alert', 'null');
     sessionStorage.setItem('disaster_requests', JSON.stringify([]));
-    
+
     // Initialize Boat 25 coordinate (for vision HUD) and the full multi-boat positions object
     sessionStorage.setItem('sim_boat_pos', JSON.stringify(SIM_BOAT_ROUTES['25'].base));
     const initialPositions = {};
@@ -200,7 +146,7 @@ class NexusSimulatorEngine {
 
   resume() {
     if (this.timer) clearInterval(this.timer);
-    
+
     // Resume boat animation if active
     if (this.currentStage === 4) {
       const pct = parseFloat(sessionStorage.getItem('sim_boat_percent') || '0');
@@ -222,7 +168,7 @@ class NexusSimulatorEngine {
 
         if (this.secondsInStage === 1) {
           this.addLog('[TELEM] River gauges reading +1.2m in North sectors.');
-          const updated = zones.map(z => 
+          const updated = zones.map(z =>
             z.id === 'nw' ? { ...z, severity: 0.85 } : z.id === 'n' ? { ...z, severity: 0.80 } : z
           );
           sessionStorage.setItem('map_zones', JSON.stringify(updated));
@@ -230,19 +176,19 @@ class NexusSimulatorEngine {
         }
         else if (this.secondsInStage === 4) {
           this.addLog('[TELEM] Floodfront advancing. Gauges reading +1.8m in Central sectors.');
-          const updated = zones.map(z => 
+          const updated = zones.map(z =>
             z.id === 'nw' ? { ...z, severity: 0.85 } : z.id === 'n' ? { ...z, severity: 0.80 } :
-            z.id === 'w' ? { ...z, severity: 0.95 } : z.id === 'c' ? { ...z, severity: 0.70 } : z
+              z.id === 'w' ? { ...z, severity: 0.95 } : z.id === 'c' ? { ...z, severity: 0.70 } : z
           );
           sessionStorage.setItem('map_zones', JSON.stringify(updated));
           this.addLog('[GIS] Extreme water surge logged at Howrah Station & Central Station.');
         }
         else if (this.secondsInStage === 8) {
           this.addLog('[TELEM] Gauges spiking in South sectors (+2.3m). West bank fully submerged.');
-          const updated = zones.map(z => 
+          const updated = zones.map(z =>
             z.id === 'nw' ? { ...z, severity: 0.85 } : z.id === 'n' ? { ...z, severity: 0.80 } :
-            z.id === 'w' ? { ...z, severity: 0.95 } : z.id === 'c' ? { ...z, severity: 0.70 } :
-            z.id === 'sw' ? { ...z, severity: 0.90 } : z.id === 's' ? { ...z, severity: 0.75 } : z
+              z.id === 'w' ? { ...z, severity: 0.95 } : z.id === 'c' ? { ...z, severity: 0.70 } :
+                z.id === 'sw' ? { ...z, severity: 0.90 } : z.id === 's' ? { ...z, severity: 0.75 } : z
           );
           sessionStorage.setItem('map_zones', JSON.stringify(updated));
           this.addLog('[GIS] Ingress complete. Bally, Howrah, Sankrail, North, Central and South City heavily flooded.');
@@ -264,10 +210,10 @@ class NexusSimulatorEngine {
         const authorizedAlert = sessionStorage.getItem('sim_authorized_alert') === 'true';
         if (auth && !authorizedAlert) {
           sessionStorage.setItem('sim_authorized_alert', 'true');
-          this.playSiren(); // Play the siren sound on manual auth too!
           this.addLog('SUCCESS: SACHET Cell Broadcast authorized by Operator.');
           this.addLog('[SAME FSK] Broadcasting 1999 Pan-EAS Attention Header frequencies...');
           this.addLog('[SMS] Warning waves dispatched to 317,200 civilian smartphones.');
+          sessionStorage.setItem('sachet_siren_pending', 'true');
         }
 
         if (this.secondsInStage >= 10) {
@@ -277,10 +223,10 @@ class NexusSimulatorEngine {
             const alertText = {
               eng: "Severe flood warning for sector. Water level expected to rise 2 meters. Evacuate immediately.",
               hindi: "बाढ़ की चेतावनी: जल स्तर 2 मीटर बढ़ने की आशंका है। कृपया तुरंत सुरक्षित स्थान पर जाएं।",
-              bengali: "জরুরী বন্যার সতর্কতা: জলের স্তর ২ মিটার বৃদ্ধি পেতে পারে। অবিলম্বে নিরাপদ স্থানে আশ্রয় নিন।"
+              bengali: "জরুরী বন্যার সতর্কতা: জলের স্তর ২ মিটার বৃদ্ধি পেতে পারে। অবিলম্বে নিরাপদ স্থানে আশ্রয় নিন。"
             };
             sessionStorage.setItem('sachet_active_alert', JSON.stringify(alertText));
-            this.playSiren(); // Play the siren sound on automatic auth!
+            sessionStorage.setItem('sachet_siren_pending', 'true');
             this.addLog('[AUTO] Broadcast authorized automatically by Sentinel AI fallback.');
             this.addLog('[SMS] Multilingual cell alerts pushed successfully.');
           }
@@ -448,7 +394,7 @@ class NexusSimulatorEngine {
 
   resumeBoatAnimate(startPct) {
     if (this.boatTimer) clearInterval(this.boatTimer);
-    
+
     let tick = Math.round(startPct * 200); // 20 seconds total = 200 ticks at 100ms/tick
 
     this.boatTimer = setInterval(() => {

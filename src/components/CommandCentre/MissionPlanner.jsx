@@ -27,31 +27,9 @@ export default function MissionPlanner() {
     }
   };
 
-  // Generate AI Mission Allocation Advice from Gemini
+  // Generate AI Mission Allocation Advice from Gemini with OpenRouter fallback
   const generateAiAdvisory = async () => {
     setLoadingAdvisory(true);
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      // High-fidelity local fallback advisor
-      setTimeout(() => {
-        setAdvisory(
-          `COGNITIVE RESOURCE ALLOCATION RECOMMENDATION
-
-- Incident: Rooftop Structural Collapse [HowrahPS]
-  └ Recommended Unit: NDRF Rescue Boat 01 (Status: Available | Fuel: 82%)
-  └ Rationale: Structural collapses in heavy flood scours require marine-grade extraction immediately. NDRF 01 is offset at Science City with optimized transit capabilities.
-
-- Incident: Power Grid Fire Danger [CentralStation]
-  └ Recommended Unit: Fire Engine 12 (Status: Available | Fuel: 74%)
-  └ Rationale: High voltage fire risk demands high-capacity pumpers. Engine 12 is nearby in Salt Lake Sector with appropriate payloads.
-
-TACTICAL NOTE: Keep State MedEvac Chopper on standby for urgent trauma transport support asSSKM beds update.`
-        );
-        setLoadingAdvisory(false);
-      }, 1000);
-      return;
-    }
 
     const missionSummary = missions.map(m => `${m.title} in ${m.location} (Severity: ${m.severity})`).join(', ');
     const fleetSummary = fleet.map(f => `${f.name} (${f.type}, Status: ${f.status})`).join(', ');
@@ -64,19 +42,82 @@ TACTICAL NOTE: Keep State MedEvac Chopper on standby for urgent trauma transport
       Generate a concise dispatch advisory (max 180 words) suggesting the optimal matching of vehicles to incidents to minimize response times. Keep it formatted in clear operational markdown bullet points.
     `;
 
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      });
-      const data = await res.json();
-      const text = data.candidates[0].content.parts[0].text;
-      setAdvisory(text);
-    } catch (err) {
-      setAdvisory("Error: Secure cognitive dispatch grid connection failed. Using manual allocation fallbacks.");
-    } finally {
+    // Try OpenRouter first, then Groq, DeepSeek
+    const providers = [
+      { name: 'OpenRouter', key: import.meta.env.VITE_OPENROUTER_API_KEY, model: 'openrouter/free' },
+      { name: 'Groq', key: import.meta.env.VITE_GROQ_API_KEY, model: 'llama-3.3-70b-versatile' },
+      { name: 'DeepSeek', key: import.meta.env.VITE_DEEPSEEK_API_KEY, model: 'deepseek-chat' }
+    ];
+
+    let successText = '';
+
+    for (const p of providers) {
+      if (!p.key) continue;
+      try {
+        if (p.name === 'Google') {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${p.model}:generateContent?key=${p.key}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
+          if (res.status === 200) {
+            const data = await res.json();
+            successText = data.candidates[0].content.parts[0].text;
+            break;
+          } else {
+            throw new Error(`Google API returned status ${res.status}`);
+          }
+        } else {
+          let endpoint;
+          if (p.name === 'Groq') endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+          else if (p.name === 'DeepSeek') endpoint = 'https://api.deepseek.com/chat/completions';
+          else if (p.name === 'OpenRouter') endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${p.key}`,
+              'HTTP-Referer': 'http://localhost:5173',
+              'X-Title': 'Nexus Disaster Dashboard'
+            },
+            body: JSON.stringify({ model: p.model, messages: [{ role: 'user', content: prompt }] })
+          });
+          if (res.status === 200) {
+            const data = await res.json();
+            successText = data.choices[0].message.content;
+            break;
+          } else {
+            throw new Error(`${p.name} API returned status ${res.status}`);
+          }
+        }
+      } catch (err) {
+        console.warn(`[MissionPlanner] ${p.name} API link failed. Trying next provider...`, err);
+      }
+    }
+
+    if (successText) {
+      setAdvisory(successText);
       setLoadingAdvisory(false);
+    } else {
+      // High-fidelity local fallback advisor
+      setTimeout(() => {
+        setAdvisory(
+          `COGNITIVE RESOURCE ALLOCATION RECOMMENDATION (LOCAL OFFLINE ENGINE)
+
+- Incident: Rooftop Structural Collapse [HowrahPS]
+  └ Recommended Unit: NDRF Rescue Boat 01 (Status: Available | Fuel: 82%)
+  └ Rationale: Structural collapses in heavy flood scours require marine-grade extraction immediately. NDRF 01 is offset at Science City with optimized transit capabilities.
+
+- Incident: Power Grid Fire Danger [CentralStation]
+  └ Recommended Unit: Fire Engine 12 (Status: Available | Fuel: 74%)
+  └ Rationale: High voltage fire risk demands high-capacity pumpers. Engine 12 is nearby in Salt Lake Sector with appropriate payloads.
+
+TACTICAL NOTE: Keep State MedEvac Chopper on standby for urgent trauma transport support as SSKM beds update.`
+        );
+        setLoadingAdvisory(false);
+      }, 1000);
     }
   };
 
@@ -102,10 +143,10 @@ TACTICAL NOTE: Keep State MedEvac Chopper on standby for urgent trauma transport
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflowY: 'auto' }}>
-      
+
       {/* Lower/Upper Split: Kanban columns + AI Advisory box */}
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-        
+
         {/* Kanban Board */}
         <div style={{ flex: 3, display: 'flex', gap: '10px', minWidth: '320px', overflowX: 'auto', paddingBottom: '10px' }}>
           {COLUMNS.map(col => {
@@ -158,9 +199,9 @@ TACTICAL NOTE: Keep State MedEvac Chopper on standby for urgent trauma transport
                       onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ 
-                          fontSize: '8px', 
-                          fontWeight: 'bold', 
+                        <span style={{
+                          fontSize: '8px',
+                          fontWeight: 'bold',
                           color: getSeverityBadgeColor(m.severity),
                           background: `${getSeverityBadgeColor(m.severity)}15`,
                           padding: '1px 4px',
@@ -173,7 +214,7 @@ TACTICAL NOTE: Keep State MedEvac Chopper on standby for urgent trauma transport
                       </div>
                       <strong style={{ fontSize: '12px', display: 'block', color: '#fff' }}>{m.title}</strong>
                       <span style={{ fontSize: '10px', color: 'var(--neon-cyan)', display: 'block', marginTop: '4px' }}>{m.location}</span>
-                      
+
                       {m.assignedTo && (
                         <div style={{ marginTop: '8px', background: 'rgba(0, 243, 255, 0.05)', border: '1px solid rgba(0, 243, 255, 0.2)', borderRadius: '3px', padding: '4px 6px', fontSize: '9px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Layers size={10} color="var(--neon-cyan)" /> {m.assignedTo}

@@ -7,7 +7,6 @@ import GraphsTab from './components/GraphsTab'
 import RequestsTab from './components/RequestsTab'
 import VisionTab from './components/VisionTab'
 import BroadcastTab from './components/BroadcastTab'
-import NexusChat from './components/NexusChat'
 
 // Pillar 1 Imports
 import RiskDashboard from './components/RiskEngine/RiskDashboard'
@@ -41,6 +40,7 @@ import PerformanceKPI from './components/Analytics/PerformanceKPI'
 import AIDebriefing from './components/Analytics/AIDebriefing'
 
 import { usePrimeState } from './utils/PrimeState'
+import NexusChat from './components/NexusChat'
 
 const PILLAR_LABELS = {
   'risk-engine': 'P1: Risk Engine',

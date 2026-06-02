@@ -40,6 +40,14 @@ export default function BroadcastTab() {
       setSimStage(stage);
       setAuthorized(auth);
 
+      // Check if simulator set the siren-pending flag and play it
+      if (sessionStorage.getItem('sachet_siren_pending') === 'true') {
+        sessionStorage.setItem('sachet_siren_pending', 'false');
+        if (window.NexusSimulator && typeof window.NexusSimulator.playSiren === 'function') {
+          try { window.NexusSimulator.playSiren(); } catch (e) {}
+        }
+      }
+
       if (active) {
         // Sequentially populate alert content
         if (stage >= 1 && warningMessage.startsWith('Severe flood warning')) {
@@ -105,7 +113,7 @@ export default function BroadcastTab() {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) throw new Error("Missing VITE_GEMINI_API_KEY");
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })

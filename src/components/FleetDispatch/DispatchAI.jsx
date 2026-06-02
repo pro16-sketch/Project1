@@ -18,7 +18,7 @@ export default function DispatchAI() {
     Object.keys(selections).forEach(missionId => {
       const vehicleId = selections[missionId];
       if (!vehicleId || vehicleId === 'none') return;
-      
+
       if (assigned[vehicleId]) {
         assigned[vehicleId].push(missionId);
       } else {
@@ -49,25 +49,6 @@ export default function DispatchAI() {
 
   const getOptimizeAdvisory = async () => {
     setLoadingAdvisory(true);
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      // Realistic fallback advisory
-      setTimeout(() => {
-        setAdvisory(
-          `COGNITIVE ROUTING ENGINE ADVISORY
-
-- Optimized Dispatch Vectors:
-  1. Route NDRF Rescue Boat 01 to 'Rooftop Structural Collapse' at HowrahPS (Priority: Critical).
-  2. Route Fire Engine 12 to 'Power Grid Fire Danger' at CentralStation (Priority: High).
-  3. Keep State MedEvac Chopper standing by for rapid clinical evacuations back to SSKM.
-  
-STATUS: Calculations optimized for minimal response queues.`
-        );
-        setLoadingAdvisory(false);
-      }, 1000);
-      return;
-    }
 
     const incidentsText = activeMissions.map(m => `${m.title} (${m.severity} at ${m.location})`).join(' | ');
     const fleetText = fleet.map(f => `${f.name} (${f.type}, Status: ${f.status})`).join(' | ');
@@ -81,19 +62,79 @@ STATUS: Calculations optimized for minimal response queues.`
       Generate a concise optimization recommendation (max 150 words) mapping exactly which vehicle to dispatch to which incident to minimize ETA. Detail conflicts if any, and list them in a clear markdown summary.
     `;
 
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      });
-      const data = await res.json();
-      const text = data.candidates[0].content.parts[0].text;
-      setAdvisory(text);
-    } catch (err) {
-      setAdvisory("Error: Secure cognitive routing server error. Reverting to manual dispatch sheets.");
-    } finally {
+    // Try OpenRouter first, then Groq, DeepSeek
+    const providers = [
+      { name: 'OpenRouter', key: import.meta.env.VITE_OPENROUTER_API_KEY, model: 'openrouter/free' },
+      { name: 'Groq', key: import.meta.env.VITE_GROQ_API_KEY, model: 'llama-3.3-70b-versatile' },
+      { name: 'DeepSeek', key: import.meta.env.VITE_DEEPSEEK_API_KEY, model: 'deepseek-chat' }
+    ];
+
+    let successText = '';
+
+    for (const p of providers) {
+      if (!p.key) continue;
+      try {
+        if (p.name === 'Google') {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${p.model}:generateContent?key=${p.key}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
+          if (res.status === 200) {
+            const data = await res.json();
+            successText = data.candidates[0].content.parts[0].text;
+            break;
+          } else {
+            throw new Error(`Google API returned status ${res.status}`);
+          }
+        } else {
+          let endpoint;
+          if (p.name === 'Groq') endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+          else if (p.name === 'DeepSeek') endpoint = 'https://api.deepseek.com/chat/completions';
+          else if (p.name === 'OpenRouter') endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${p.key}`,
+              'HTTP-Referer': 'http://localhost:5173',
+              'X-Title': 'Nexus Disaster Dashboard'
+            },
+            body: JSON.stringify({ model: p.model, messages: [{ role: 'user', content: prompt }] })
+          });
+          if (res.status === 200) {
+            const data = await res.json();
+            successText = data.choices[0].message.content;
+            break;
+          } else {
+            throw new Error(`${p.name} API returned status ${res.status}`);
+          }
+        }
+      } catch (err) {
+        console.warn(`[DispatchAI] ${p.name} API link failed. Trying next provider...`, err);
+      }
+    }
+
+    if (successText) {
+      setAdvisory(successText);
       setLoadingAdvisory(false);
+    } else {
+      // Realistic fallback advisory
+      setTimeout(() => {
+        setAdvisory(
+          `COGNITIVE ROUTING ENGINE ADVISORY (LOCAL OFFLINE ENGINE)
+
+- Optimized Dispatch Vectors:
+  1. Route NDRF Rescue Boat 01 to 'Rooftop Structural Collapse' at HowrahPS (Priority: Critical).
+  2. Route Fire Engine 12 to 'Power Grid Fire Danger' at CentralStation (Priority: High).
+  3. Keep State MedEvac Chopper standing by for rapid clinical evacuations back to SSKM.
+  
+STATUS: Calculations optimized for minimal response queues (LOCAL FALLBACK).`
+        );
+        setLoadingAdvisory(false);
+      }, 1000);
     }
   };
 
@@ -108,7 +149,7 @@ STATUS: Calculations optimized for minimal response queues.`
 
   return (
     <div style={{ display: 'flex', gap: '20px', height: '100%', overflowY: 'auto', flexWrap: 'wrap', paddingRight: '5px' }}>
-      
+
       {/* Grid of Incidents and Dropdowns */}
       <div style={{ flex: 3, minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <div className="glass-panel" style={{ padding: '20px' }}>
@@ -163,7 +204,7 @@ STATUS: Calculations optimized for minimal response queues.`
 
       {/* Side Conflict / Advice HUD */}
       <div style={{ flex: 1.5, minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        
+
         {/* Conflict Warning Card */}
         {conflicts.length > 0 && (
           <div className="glass-panel" style={{ padding: '15px 20px', background: 'rgba(255,51,51,0.05)', border: '1px solid var(--neon-red)' }}>
